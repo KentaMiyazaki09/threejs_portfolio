@@ -5,9 +5,84 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vite App</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/KLA6/cannon-es-umd@v0.20.0/cannon-es.umd.js"></script>
   </head>
   <body>
     <canvas id="canvas"></canvas>
     <script type="module" src="/src/main.js"></script>
+
+    <script>
+      // Three.jsのセットアップ
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      // 環境光
+      const light = new THREE.AmbientLight(0xffffff, 1);
+      scene.add(light);
+
+      // Cannon.jsのセットアップ
+      const world = new CANNON.World();
+      world.gravity.set(0, -9.82, 0); // 重力を設定
+
+      // 地面（物理ボディ）
+      const groundBody = new CANNON.Body({
+          type: CANNON.Body.STATIC,
+          shape: new CANNON.Plane(),
+      });
+      groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+      world.addBody(groundBody);
+
+      // Three.jsの地面
+      const groundGeometry = new THREE.PlaneGeometry(10, 10);
+      const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x555555, side: THREE.DoubleSide });
+      const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+      groundMesh.rotation.x = -Math.PI / 2;
+      scene.add(groundMesh);
+
+      // 文字の作成
+      const fontLoader = new THREE.FontLoader();
+      fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
+          const textGeometry = new THREE.TextGeometry('A', {
+              font: font,
+              size: 1,
+              height: 0.2,
+          });
+
+          const textMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+          const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+          scene.add(textMesh);
+
+          // 文字の物理ボディ
+          const textBody = new CANNON.Body({
+              mass: 1,
+              shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.1)), // 大まかな当たり判定
+              position: new CANNON.Vec3(0, 5, 0), // 上から降らせる
+          });
+          world.addBody(textBody);
+
+          // アニメーションループ
+          function animate() {
+              requestAnimationFrame(animate);
+              
+              // 物理エンジンの更新
+              world.step(1 / 60);
+              
+              // 物理ボディの位置をThree.jsに適用
+              textMesh.position.copy(textBody.position);
+              textMesh.quaternion.copy(textBody.quaternion);
+
+              renderer.render(scene, camera);
+          }
+
+          animate();
+      });
+
+      // カメラの位置
+      camera.position.set(0, 2, 5);
+  </script>
   </body>
 </html>
